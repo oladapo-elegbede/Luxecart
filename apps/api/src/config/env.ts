@@ -1,4 +1,17 @@
+import { config as loadEnv } from 'dotenv';
 import { z } from 'zod';
+
+/**
+ * Load environment variables from .env file.
+ *
+ * This MUST run before envSchema.safeParse() below.
+ * Otherwise process.env won't have our .env values yet.
+ *
+ * In production (Railway, Vercel, AWS), .env is not used —
+ * environment variables are set directly in the platform.
+ * loadEnv() simply does nothing if no .env file exists, which is fine.
+ */
+loadEnv();
 
 /**
  * Environment variable validation schema.
@@ -11,9 +24,6 @@ import { z } from 'zod';
  * clear message: "Missing required environment variable: DATABASE_URL"
  *
  * This is called "fail fast" — a critical production principle.
- *
- * NOTE: We are starting with minimal variables. We will add more
- * (DATABASE_URL, JWT secrets, Stripe keys, etc.) when we need them.
  */
 const envSchema = z.object({
   // Server
@@ -23,6 +33,15 @@ const envSchema = z.object({
   PORT: z.string().default('5000'),
   API_URL: z.string().url().default('http://localhost:5000'),
   CLIENT_URL: z.string().url().default('http://localhost:3000'),
+
+  // Database
+  DATABASE_URL: z
+    .string()
+    .min(1, 'DATABASE_URL is required')
+    .refine(
+      (val) => val.startsWith('postgresql://') || val.startsWith('postgres://'),
+      'DATABASE_URL must be a valid PostgreSQL connection string'
+    ),
 });
 
 /**

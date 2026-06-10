@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -17,7 +18,7 @@ import { env } from './config/env';
  * In tests, we import app.ts and use supertest to make requests.
  * We never actually start the server in tests — too slow, port conflicts.
  */
-const app = express();
+const app: Express = express();
 
 // ─────────────────────────────────────────
 // Security Middleware
