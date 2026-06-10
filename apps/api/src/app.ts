@@ -7,6 +7,8 @@ import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { env } from './config/env';
 import { prisma } from './config/database';
+import authRoutes from './modules/auth/auth.routes';
+import { errorHandler } from './middleware/errorHandler';
 
 /**
  * Create and configure the Express application.
@@ -131,7 +133,7 @@ app.get('/health', async (_req, res) => {
 });
 
 // ─────────────────────────────────────────
-// API Routes (placeholder for now)
+// API v1 Root
 // ─────────────────────────────────────────
 
 app.get('/api/v1', (_req, res) => {
@@ -142,7 +144,13 @@ app.get('/api/v1', (_req, res) => {
 });
 
 // ─────────────────────────────────────────
-// 404 Handler (must be last)
+// API v1 Routes (modules)
+// ─────────────────────────────────────────
+
+app.use('/api/v1/auth', authRoutes);
+
+// ─────────────────────────────────────────
+// 404 Handler (after all routes)
 // ─────────────────────────────────────────
 
 app.use((_req, res) => {
@@ -152,5 +160,11 @@ app.use((_req, res) => {
     code: 'NOT_FOUND',
   });
 });
+
+// ─────────────────────────────────────────
+// Global Error Handler (MUST BE LAST)
+// ─────────────────────────────────────────
+
+app.use(errorHandler);
 
 export default app;
