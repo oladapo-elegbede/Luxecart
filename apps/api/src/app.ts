@@ -6,6 +6,7 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { env } from './config/env';
+import { prisma } from './config/database';
 
 /**
  * Create and configure the Express application.
@@ -102,14 +103,31 @@ if (env.NODE_ENV !== 'test') {
  * - Docker health checks
  * - Kubernetes readiness probes
  * - Monitoring dashboards
+ *
+ * This endpoint also tests the database connection with a simple query.
+ * Returns 200 if everything is healthy, 503 if database is unreachable.
  */
-app.get('/health', (_req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    environment: env.NODE_ENV,
-    version: '0.0.1',
-  });
+app.get('/health', async (_req, res) => {
+  try {
+    // Test database connectivity with a minimal query
+    await prisma.$queryRaw`SELECT 1`;
+
+    res.status(200).json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      environment: env.NODE_ENV,
+      version: '0.0.1',
+      database: 'connected',
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      environment: env.NODE_ENV,
+      database: 'disconnected',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
 });
 
 // ─────────────────────────────────────────
