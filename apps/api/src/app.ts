@@ -8,6 +8,8 @@ import morgan from 'morgan';
 import { env } from './config/env';
 import { prisma } from './config/database';
 import authRoutes from './modules/auth/auth.routes';
+import userRoutes from './modules/users/users.routes';
+import addressRoutes from './modules/addresses/addresses.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 /**
@@ -148,6 +150,8 @@ app.get('/api/v1', (_req, res) => {
 // ─────────────────────────────────────────
 
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/addresses', addressRoutes);
 
 // ─────────────────────────────────────────
 // 404 Handler (after all routes)
