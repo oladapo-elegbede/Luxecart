@@ -17,6 +17,7 @@ import wishlistRoutes from './modules/wishlist/wishlist.routes';
 import orderRoutes from './modules/orders/orders.routes';
 import reviewRoutes from './modules/reviews/reviews.routes';
 import notificationRoutes from './modules/notifications/notifications.routes';
+import adminRoutes from './modules/admin/admin.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app: Express = express();
@@ -92,11 +93,24 @@ app.get('/api/v1', (_req, res) => {
   res.status(200).json({
     success: true,
     message: 'LuxeCart API v1',
+    modules: [
+      'auth',
+      'users',
+      'addresses',
+      'categories',
+      'products',
+      'cart',
+      'wishlist',
+      'orders',
+      'reviews',
+      'notifications',
+      'admin',
+    ],
   });
 });
 
 // ─────────────────────────────────────────
-// API v1 Routes (modules)
+// API v1 Routes (all 10 modules)
 // ─────────────────────────────────────────
 
 app.use('/api/v1/auth', authRoutes);
@@ -109,6 +123,7 @@ app.use('/api/v1/wishlist', wishlistRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
 // ─────────────────────────────────────────
 // 404 Handler (after all routes)
