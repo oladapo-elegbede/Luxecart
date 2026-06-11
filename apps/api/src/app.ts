@@ -15,6 +15,7 @@ import productRoutes from './modules/products/products.routes';
 import cartRoutes from './modules/cart/cart.routes';
 import wishlistRoutes from './modules/wishlist/wishlist.routes';
 import orderRoutes from './modules/orders/orders.routes';
+import reviewRoutes from './modules/reviews/reviews.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app: Express = express();
@@ -105,6 +106,7 @@ app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/wishlist', wishlistRoutes);
 app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/reviews', reviewRoutes);
 
 // ─────────────────────────────────────────
 // 404 Handler (after all routes)
