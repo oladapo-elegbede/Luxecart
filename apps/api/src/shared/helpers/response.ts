@@ -11,7 +11,7 @@ import type { Response } from 'express';
  * Frontend code can always rely on the same shape.
  */
 
-interface PaginationMeta {
+export interface PaginationMeta  {
   total: number;
   page: number;
   limit: number;

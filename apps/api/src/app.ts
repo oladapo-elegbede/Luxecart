@@ -11,6 +11,7 @@ import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/users.routes';
 import addressRoutes from './modules/addresses/addresses.routes';
 import categoryRoutes from './modules/categories/categories.routes';
+import productRoutes from './modules/products/products.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 /**
@@ -154,6 +155,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/addresses', addressRoutes);
 app.use('/api/v1/categories', categoryRoutes);
+app.use('/api/v1/products', productRoutes);
 
 // ─────────────────────────────────────────
 // 404 Handler (after all routes)
