@@ -13,6 +13,7 @@ import addressRoutes from './modules/addresses/addresses.routes';
 import categoryRoutes from './modules/categories/categories.routes';
 import productRoutes from './modules/products/products.routes';
 import cartRoutes from './modules/cart/cart.routes';
+import wishlistRoutes from './modules/wishlist/wishlist.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 /**
@@ -32,14 +33,6 @@ const app: Express = express();
 // Security Middleware
 // ─────────────────────────────────────────
 
-/**
- * Helmet sets 15+ security-related HTTP headers.
- *
- * X-Content-Type-Options: nosniff — Prevents MIME sniffing attacks
- * X-Frame-Options: DENY — Prevents clickjacking
- * Strict-Transport-Security — Forces HTTPS (production only)
- * Content-Security-Policy — Controls which resources can load
- */
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -47,13 +40,6 @@ app.use(
   })
 );
 
-/**
- * CORS Configuration.
- *
- * Only allow requests from our frontend domain.
- * credentials: true — allows cookies to be sent cross-origin.
- *   Required for our httpOnly refresh token cookie.
- */
 app.use(
   cors({
     origin: [env.CLIENT_URL],
@@ -67,27 +53,9 @@ app.use(
 // Request Parsing Middleware
 // ─────────────────────────────────────────
 
-/**
- * Parse JSON request bodies.
- * limit: '10mb' — prevents large payload attacks (DoS).
- */
 app.use(express.json({ limit: '10mb' }));
-
-/**
- * Parse URL-encoded request bodies (form submissions).
- */
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-/**
- * Parse Cookie header and populate req.cookies.
- * Used to read our httpOnly refresh token cookie.
- */
 app.use(cookieParser());
-
-/**
- * Compress all responses using gzip.
- * Reduces bandwidth usage by 70-80% for JSON responses.
- */
 app.use(compression());
 
 // ─────────────────────────────────────────
@@ -102,21 +70,8 @@ if (env.NODE_ENV !== 'test') {
 // Health Check
 // ─────────────────────────────────────────
 
-/**
- * Health check endpoint.
- *
- * Required for:
- * - Load balancers (they ping this to check if server is alive)
- * - Docker health checks
- * - Kubernetes readiness probes
- * - Monitoring dashboards
- *
- * This endpoint also tests the database connection with a simple query.
- * Returns 200 if everything is healthy, 503 if database is unreachable.
- */
 app.get('/health', async (_req, res) => {
   try {
-    // Test database connectivity with a minimal query
     await prisma.$queryRaw`SELECT 1`;
 
     res.status(200).json({
@@ -158,6 +113,7 @@ app.use('/api/v1/addresses', addressRoutes);
 app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/cart', cartRoutes);
+app.use('/api/v1/wishlist', wishlistRoutes);
 
 // ─────────────────────────────────────────
 // 404 Handler (after all routes)
