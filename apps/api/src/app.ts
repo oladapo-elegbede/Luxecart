@@ -14,19 +14,9 @@ import categoryRoutes from './modules/categories/categories.routes';
 import productRoutes from './modules/products/products.routes';
 import cartRoutes from './modules/cart/cart.routes';
 import wishlistRoutes from './modules/wishlist/wishlist.routes';
+import orderRoutes from './modules/orders/orders.routes';
 import { errorHandler } from './middleware/errorHandler';
 
-/**
- * Create and configure the Express application.
- *
- * WHY SEPARATE app.ts FROM server.ts?
- *
- * app.ts: Creates and configures the Express app (testable)
- * server.ts: Starts the HTTP server (not imported in tests)
- *
- * In tests, we import app.ts and use supertest to make requests.
- * We never actually start the server in tests — too slow, port conflicts.
- */
 const app: Express = express();
 
 // ─────────────────────────────────────────
@@ -114,6 +104,7 @@ app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/wishlist', wishlistRoutes);
+app.use('/api/v1/orders', orderRoutes);
 
 // ─────────────────────────────────────────
 // 404 Handler (after all routes)
