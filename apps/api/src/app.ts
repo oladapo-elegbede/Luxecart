@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { env } from './config/env';
 import { prisma } from './config/database';
+import { apiLimiter } from './middleware/rate-limiter';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/users.routes';
 import addressRoutes from './modules/addresses/addresses.routes';
@@ -21,6 +22,14 @@ import adminRoutes from './modules/admin/admin.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app: Express = express();
+
+// ─────────────────────────────────────────
+// Trust proxy (required for rate limiter in production)
+// ─────────────────────────────────────────
+
+// When deployed behind a reverse proxy (Vercel, Railway, etc.),
+// we need this so req.ip returns the real client IP, not the proxy's.
+app.set('trust proxy', 1);
 
 // ─────────────────────────────────────────
 // Security Middleware
@@ -60,7 +69,7 @@ if (env.NODE_ENV !== 'test') {
 }
 
 // ─────────────────────────────────────────
-// Health Check
+// Health Check (no rate limit)
 // ─────────────────────────────────────────
 
 app.get('/health', async (_req, res) => {
@@ -84,6 +93,12 @@ app.get('/health', async (_req, res) => {
     });
   }
 });
+
+// ─────────────────────────────────────────
+// Apply general rate limiter to all API routes
+// ─────────────────────────────────────────
+
+app.use('/api/v1', apiLimiter);
 
 // ─────────────────────────────────────────
 // API v1 Root
