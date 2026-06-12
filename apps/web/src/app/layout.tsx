@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/providers/theme-provider';
 import { AuthBootstrap } from '@/providers/auth-bootstrap';
 import { Toaster } from '@/components/ui/sonner';
 import { Navbar } from '@/components/common/navbar';
+import { CartDrawer } from '@/components/cart/cart-drawer';
 import './globals.css';
 
 const geistSans = Geist({
@@ -58,6 +59,7 @@ export default function RootLayout({
             <AuthBootstrap />
             <Navbar />
             <main>{children}</main>
+            <CartDrawer />
             <Toaster richColors position="top-right" />
           </QueryProvider>
         </ThemeProvider>
