@@ -7,39 +7,50 @@ import {
   refresh,
   logout,
   me,
+  forgotPassword,
+  resetPasswordHandler,
+  verifyEmailHandler,
+  resendVerificationHandler,
 } from './auth.controller';
 
 /**
  * Authentication Routes.
  *
- * Maps URL paths to controller functions.
- * All routes here are prefixed with /auth in app.ts.
+ * All routes prefixed with /auth in app.ts.
  *
- * Public routes (no auth required):
- *   POST /auth/register   — Create new account
- *   POST /auth/login      — Authenticate
- *   POST /auth/refresh    — Get new access token from refresh cookie
- *   POST /auth/logout     — Revoke refresh token
+ * PUBLIC ROUTES:
+ *   POST   /auth/register              Create new account
+ *   POST   /auth/login                 Sign in
+ *   POST   /auth/refresh               Refresh access token
+ *   POST   /auth/logout                Sign out (revokes refresh token)
  *
- * Protected routes (auth required):
- *   GET  /auth/me         — Get current user profile
+ *   POST   /auth/forgot-password       Request password reset email
+ *   POST   /auth/reset-password        Set new password using token
+ *
+ *   POST   /auth/verify-email          Confirm email with token
+ *   POST   /auth/resend-verification   Request new verification email
+ *
+ * PROTECTED ROUTES:
+ *   GET    /auth/me                    Get current user profile
  */
 
 const router: ExpressRouter = Router();
 
-// ─────────────────────────────────────────
-// Public Routes
-// ─────────────────────────────────────────
-
+// Public — auth flow
 router.post('/register', register);
 router.post('/login', login);
 router.post('/refresh', refresh);
 router.post('/logout', logout);
 
-// ─────────────────────────────────────────
-// Protected Routes (require valid access token)
-// ─────────────────────────────────────────
+// Public — password reset flow
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPasswordHandler);
 
+// Public — email verification flow
+router.post('/verify-email', verifyEmailHandler);
+router.post('/resend-verification', resendVerificationHandler);
+
+// Protected
 router.get('/me', authenticate, me);
 
 export default router;

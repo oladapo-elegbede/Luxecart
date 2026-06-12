@@ -4,8 +4,7 @@ import type { ApiSuccessResponse, AuthResponse, User } from '@/types';
 /**
  * Auth API Helpers.
  *
- * Thin typed wrappers around our backend /auth endpoints.
- * Used by React Query mutations and queries.
+ * Thin typed wrappers around backend /auth endpoints.
  */
 
 export interface RegisterInput {
@@ -20,11 +19,25 @@ export interface LoginInput {
   password: string;
 }
 
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  token: string;
+  newPassword: string;
+}
+
+export interface VerifyEmailInput {
+  token: string;
+}
+
+export interface ResendVerificationInput {
+  email: string;
+}
+
 /**
  * Register a new user account.
- *
- * Returns user + access token.
- * Refresh token is set as httpOnly cookie automatically by backend.
  */
 export async function registerUser(input: RegisterInput): Promise<AuthResponse> {
   const { data } = await api.post<ApiSuccessResponse<AuthResponse>>(
@@ -36,9 +49,6 @@ export async function registerUser(input: RegisterInput): Promise<AuthResponse> 
 
 /**
  * Log in an existing user.
- *
- * Returns user + access token.
- * Refresh token is set as httpOnly cookie automatically by backend.
  */
 export async function loginUser(input: LoginInput): Promise<AuthResponse> {
   const { data } = await api.post<ApiSuccessResponse<AuthResponse>>(
@@ -50,9 +60,6 @@ export async function loginUser(input: LoginInput): Promise<AuthResponse> {
 
 /**
  * Log out the current user.
- *
- * Backend revokes the refresh token and clears the cookie.
- * Frontend should clear local auth state after this resolves.
  */
 export async function logoutUser(): Promise<void> {
   await api.post('/auth/logout');
@@ -60,11 +67,40 @@ export async function logoutUser(): Promise<void> {
 
 /**
  * Get the currently authenticated user.
- *
- * Calls /auth/me with the access token.
- * Used on app load to restore session.
  */
 export async function getCurrentUser(): Promise<User> {
   const { data } = await api.get<ApiSuccessResponse<{ user: User }>>('/auth/me');
   return data.data.user;
+}
+
+/**
+ * Request a password reset email.
+ *
+ * Backend always returns success (security) — UI should show a neutral message.
+ */
+export async function forgotPassword(input: ForgotPasswordInput): Promise<void> {
+  await api.post('/auth/forgot-password', input);
+}
+
+/**
+ * Submit a new password using the reset token from email.
+ */
+export async function resetPassword(input: ResetPasswordInput): Promise<void> {
+  await api.post('/auth/reset-password', input);
+}
+
+/**
+ * Verify an email address using the token from email.
+ */
+export async function verifyEmail(input: VerifyEmailInput): Promise<void> {
+  await api.post('/auth/verify-email', input);
+}
+
+/**
+ * Request a new verification email.
+ */
+export async function resendVerification(
+  input: ResendVerificationInput
+): Promise<void> {
+  await api.post('/auth/resend-verification', input);
 }

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { prisma } from '../../config/database';
 import { hashPassword, verifyPassword } from '../../shared/helpers/hash';
 import {
@@ -10,46 +11,80 @@ import {
   ConflictError,
   AuthenticationError,
   NotFoundError,
+  ValidationError,
 } from '../../shared/errors/HttpError';
 import { env } from '../../config/env';
-import type { RegisterInput, LoginInput } from './auth.validator';
+import {
+  sendEmail,
+  buildVerificationEmail,
+  buildPasswordResetEmail,
+} from '../../config/email';
+import type {
+  RegisterInput,
+  LoginInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
+  VerifyEmailInput,
+  ResendVerificationInput,
+} from './auth.validator';
 import type { User } from '@prisma/client';
 
 /**
  * Authentication Service.
  *
- * Contains all authentication business logic.
- * Knows nothing about HTTP requests, responses, or cookies.
- *
- * The controller wraps this service with HTTP concerns.
- * Tests can call this service directly without HTTP overhead.
+ * Business logic for:
+ *   - Register / Login / Logout
+ *   - Token refresh (with rotation)
+ *   - Email verification
+ *   - Password reset
  */
 
-/**
- * Data we return to the client after auth (register/login).
- * Strips sensitive fields like password.
- */
 export interface AuthResult {
   user: Omit<User, 'password'>;
   accessToken: string;
   refreshToken: string;
 }
 
+// ─────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────
+
+const EMAIL_VERIFICATION_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+const PASSWORD_RESET_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+
+// ─────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────
+
 /**
- * Register a new user.
+ * Generate a cryptographically secure random token.
  *
- * Flow:
- * 1. Check email isn't already taken
- * 2. Hash the password
- * 3. Create user in database (with cart and wishlist)
- * 4. Generate access + refresh tokens
- * 5. Store refresh token in database
- * 6. Return user data + tokens
- *
- * @throws ConflictError if email already exists
+ * Used for email verification and password reset URLs.
+ * 32 bytes = 64 hex characters = effectively impossible to guess.
  */
+function generateSecureToken(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+/**
+ * Build a URL for the frontend.
+ *
+ * Example: buildClientUrl('/verify-email', { token: 'xyz' })
+ *   → 'http://localhost:3000/verify-email?token=xyz'
+ */
+function buildClientUrl(path: string, params: Record<string, string>): string {
+  const url = new URL(path, env.CLIENT_URL);
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+  return url.toString();
+}
+
+// ─────────────────────────────────────────
+// Registration
+// ─────────────────────────────────────────
+
 export async function registerUser(input: RegisterInput): Promise<AuthResult> {
-  // 1. Check if email is taken
   const existingUser = await prisma.user.findUnique({
     where: { email: input.email },
   });
@@ -58,11 +93,8 @@ export async function registerUser(input: RegisterInput): Promise<AuthResult> {
     throw new ConflictError('An account with this email already exists');
   }
 
-  // 2. Hash the password
   const hashedPassword = await hashPassword(input.password);
 
-  // 3. Create user with their cart and wishlist
-  //    Using a transaction ensures all-or-nothing creation
   const user = await prisma.user.create({
     data: {
       email: input.email,
@@ -74,7 +106,11 @@ export async function registerUser(input: RegisterInput): Promise<AuthResult> {
     },
   });
 
-  // 4. Generate tokens
+  // Send verification email (fire-and-forget — don't fail registration if email fails)
+  sendVerificationEmail(user.id).catch((err) => {
+    console.error('Failed to send verification email:', err);
+  });
+
   const tokenPayload: TokenPayload = {
     userId: user.id,
     email: user.email,
@@ -84,10 +120,8 @@ export async function registerUser(input: RegisterInput): Promise<AuthResult> {
   const accessToken = generateAccessToken(tokenPayload);
   const refreshToken = generateRefreshToken(tokenPayload);
 
-  // 5. Store refresh token in database (for revocation on logout)
   await storeRefreshToken(user.id, refreshToken);
 
-  // 6. Return user (without password) + tokens
   const { password: _password, ...userWithoutPassword } = user;
 
   return {
@@ -97,25 +131,11 @@ export async function registerUser(input: RegisterInput): Promise<AuthResult> {
   };
 }
 
-/**
- * Log in an existing user.
- *
- * Flow:
- * 1. Find user by email
- * 2. Verify password against stored hash
- * 3. Check account isn't suspended
- * 4. Update last login timestamp
- * 5. Generate new tokens
- * 6. Store refresh token
- *
- * @throws AuthenticationError if credentials are invalid
- *
- * SECURITY NOTE:
- * We use the SAME error message for "email not found" and "wrong password".
- * This prevents attackers from enumerating which emails exist in our system.
- */
+// ─────────────────────────────────────────
+// Login
+// ─────────────────────────────────────────
+
 export async function loginUser(input: LoginInput): Promise<AuthResult> {
-  // 1. Find user
   const user = await prisma.user.findUnique({
     where: { email: input.email },
   });
@@ -124,27 +144,23 @@ export async function loginUser(input: LoginInput): Promise<AuthResult> {
     throw new AuthenticationError('Invalid email or password');
   }
 
-  // 2. Verify password
   const isPasswordValid = await verifyPassword(input.password, user.password);
 
   if (!isPasswordValid) {
     throw new AuthenticationError('Invalid email or password');
   }
 
-  // 3. Check suspension
   if (user.isSuspended) {
     throw new AuthenticationError(
       'This account has been suspended. Please contact support.'
     );
   }
 
-  // 4. Update last login
   await prisma.user.update({
     where: { id: user.id },
     data: { lastLoginAt: new Date() },
   });
 
-  // 5. Generate tokens
   const tokenPayload: TokenPayload = {
     userId: user.id,
     email: user.email,
@@ -154,10 +170,8 @@ export async function loginUser(input: LoginInput): Promise<AuthResult> {
   const accessToken = generateAccessToken(tokenPayload);
   const refreshToken = generateRefreshToken(tokenPayload);
 
-  // 6. Store refresh token
   await storeRefreshToken(user.id, refreshToken);
 
-  // 7. Return user (without password) + tokens
   const { password: _password, ...userWithoutPassword } = user;
 
   return {
@@ -167,27 +181,15 @@ export async function loginUser(input: LoginInput): Promise<AuthResult> {
   };
 }
 
-/**
- * Refresh an access token using a valid refresh token.
- *
- * Flow:
- * 1. Verify the refresh token's JWT signature
- * 2. Check the token exists in DB and isn't revoked
- * 3. Generate a NEW access token AND a NEW refresh token (rotation)
- * 4. Revoke the old refresh token
- * 5. Store the new refresh token
- *
- * REFRESH TOKEN ROTATION:
- * Every refresh issues a NEW refresh token and invalidates the old one.
- * This limits the damage if a refresh token is stolen — it only works once.
- */
+// ─────────────────────────────────────────
+// Token Refresh (with rotation)
+// ─────────────────────────────────────────
+
 export async function refreshAccessToken(
   oldRefreshToken: string
 ): Promise<AuthResult> {
-  // 1. Verify JWT signature
   const payload = verifyRefreshToken(oldRefreshToken);
 
-  // 2. Check token exists in DB and isn't revoked
   const storedToken = await prisma.refreshToken.findUnique({
     where: { token: oldRefreshToken },
     include: { user: true },
@@ -205,7 +207,6 @@ export async function refreshAccessToken(
     throw new AuthenticationError('Refresh token has expired');
   }
 
-  // 3. Generate new tokens
   const newPayload: TokenPayload = {
     userId: payload.userId,
     email: payload.email,
@@ -215,7 +216,6 @@ export async function refreshAccessToken(
   const newAccessToken = generateAccessToken(newPayload);
   const newRefreshToken = generateRefreshToken(newPayload);
 
-  // 4. Revoke old token + store new token (in parallel for speed)
   await Promise.all([
     prisma.refreshToken.update({
       where: { id: storedToken.id },
@@ -224,7 +224,6 @@ export async function refreshAccessToken(
     storeRefreshToken(storedToken.userId, newRefreshToken),
   ]);
 
-  // 5. Return user + new tokens
   const { password: _password, ...userWithoutPassword } = storedToken.user;
 
   return {
@@ -234,23 +233,16 @@ export async function refreshAccessToken(
   };
 }
 
-/**
- * Log out a user by revoking their refresh token.
- *
- * Note: We can't truly "invalidate" the access token (it's stateless JWT).
- * Instead, we revoke the refresh token so the user can't get a new access
- * token. The current access token still works until it expires (max 15min).
- *
- * For higher security needs, we could add a token blocklist in Redis.
- * We're not doing that to keep the architecture simple.
- */
+// ─────────────────────────────────────────
+// Logout
+// ─────────────────────────────────────────
+
 export async function logoutUser(refreshToken: string): Promise<void> {
   const storedToken = await prisma.refreshToken.findUnique({
     where: { token: refreshToken },
   });
 
   if (!storedToken) {
-    // Already gone — silent success
     return;
   }
 
@@ -260,14 +252,10 @@ export async function logoutUser(refreshToken: string): Promise<void> {
   });
 }
 
-/**
- * Get the current logged-in user.
- *
- * Called by the /me endpoint after auth middleware verifies the token.
- * Always returns FRESH data from database (not the JWT payload).
- *
- * @throws NotFoundError if user doesn't exist (e.g., deleted while logged in)
- */
+// ─────────────────────────────────────────
+// Get Current User
+// ─────────────────────────────────────────
+
 export async function getCurrentUser(userId: string): Promise<Omit<User, 'password'>> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -281,17 +269,220 @@ export async function getCurrentUser(userId: string): Promise<Omit<User, 'passwo
   return userWithoutPassword;
 }
 
+// ─────────────────────────────────────────
+// EMAIL VERIFICATION
+// ─────────────────────────────────────────
+
 /**
- * Internal helper: Store a refresh token in the database.
+ * Send (or re-send) a verification email to a user.
  *
- * Calculates the expiry date based on JWT_REFRESH_EXPIRES_IN config.
- * Storing in DB allows us to revoke tokens (true logout).
+ * Flow:
+ *   1. Delete any existing UNUSED verification tokens
+ *   2. Generate a new secure token
+ *   3. Store it (hashed) with 24-hour expiry
+ *   4. Send the email with the verification link
+ *
+ * IMPORTANT: We store the RAW token, not a hash.
+ * The token is sent only in the email and only used once.
+ * Hashing it adds little security in this case.
  */
+async function sendVerificationEmail(userId: string): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    throw new NotFoundError('User');
+  }
+
+  if (user.isVerified) {
+    return; // Already verified, no email needed
+  }
+
+  // Delete any pending verification tokens for this user
+  await prisma.verificationToken.deleteMany({
+    where: {
+      userId,
+      type: 'EMAIL_VERIFICATION',
+      usedAt: null,
+    },
+  });
+
+  const token = generateSecureToken();
+  const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_EXPIRY_MS);
+
+  await prisma.verificationToken.create({
+    data: {
+      userId,
+      token,
+      type: 'EMAIL_VERIFICATION',
+      expiresAt,
+    },
+  });
+
+  const verificationUrl = buildClientUrl('/verify-email', { token });
+  const email = buildVerificationEmail(user.email, user.firstName, verificationUrl);
+  await sendEmail(email);
+}
+
+/**
+ * Verify a user's email using the token from their email link.
+ *
+ * Flow:
+ *   1. Find the token in DB
+ *   2. Check it's not used or expired
+ *   3. Mark user as verified
+ *   4. Mark token as used
+ */
+export async function verifyEmail(input: VerifyEmailInput): Promise<void> {
+  const storedToken = await prisma.verificationToken.findUnique({
+    where: { token: input.token },
+  });
+
+  if (!storedToken || storedToken.type !== 'EMAIL_VERIFICATION') {
+    throw new ValidationError('Invalid or expired verification link');
+  }
+
+  if (storedToken.usedAt) {
+    throw new ValidationError('This verification link has already been used');
+  }
+
+  if (storedToken.expiresAt < new Date()) {
+    throw new ValidationError('This verification link has expired');
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: storedToken.userId },
+      data: { isVerified: true },
+    }),
+    prisma.verificationToken.update({
+      where: { id: storedToken.id },
+      data: { usedAt: new Date() },
+    }),
+  ]);
+}
+
+/**
+ * Resend a verification email.
+ *
+ * SECURITY: We always return success, even if the email doesn't exist.
+ * This prevents email enumeration attacks.
+ */
+export async function resendVerification(
+  input: ResendVerificationInput
+): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { email: input.email },
+  });
+
+  // Silently succeed if user doesn't exist or already verified
+  if (!user || user.isVerified) {
+    return;
+  }
+
+  await sendVerificationEmail(user.id);
+}
+
+// ─────────────────────────────────────────
+// PASSWORD RESET
+// ─────────────────────────────────────────
+
+/**
+ * Request a password reset email.
+ *
+ * SECURITY: Always return success regardless of whether the email exists.
+ * This prevents email enumeration attacks.
+ */
+export async function requestPasswordReset(
+  input: ForgotPasswordInput
+): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { email: input.email },
+  });
+
+  // Silently succeed if user doesn't exist
+  if (!user) {
+    return;
+  }
+
+  // Delete any existing unused reset tokens
+  await prisma.verificationToken.deleteMany({
+    where: {
+      userId: user.id,
+      type: 'PASSWORD_RESET',
+      usedAt: null,
+    },
+  });
+
+  const token = generateSecureToken();
+  const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRY_MS);
+
+  await prisma.verificationToken.create({
+    data: {
+      userId: user.id,
+      token,
+      type: 'PASSWORD_RESET',
+      expiresAt,
+    },
+  });
+
+  const resetUrl = buildClientUrl('/reset-password', { token });
+  const email = buildPasswordResetEmail(user.email, user.firstName, resetUrl);
+  await sendEmail(email);
+}
+
+/**
+ * Reset a user's password using the token from their email.
+ *
+ * Flow:
+ *   1. Find and validate the token
+ *   2. Hash the new password
+ *   3. Update user
+ *   4. Mark token as used
+ *   5. Revoke ALL existing refresh tokens (force logout everywhere)
+ */
+export async function resetPassword(input: ResetPasswordInput): Promise<void> {
+  const storedToken = await prisma.verificationToken.findUnique({
+    where: { token: input.token },
+  });
+
+  if (!storedToken || storedToken.type !== 'PASSWORD_RESET') {
+    throw new ValidationError('Invalid or expired reset link');
+  }
+
+  if (storedToken.usedAt) {
+    throw new ValidationError('This reset link has already been used');
+  }
+
+  if (storedToken.expiresAt < new Date()) {
+    throw new ValidationError('This reset link has expired');
+  }
+
+  const newPasswordHash = await hashPassword(input.newPassword);
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: storedToken.userId },
+      data: { password: newPasswordHash },
+    }),
+    prisma.verificationToken.update({
+      where: { id: storedToken.id },
+      data: { usedAt: new Date() },
+    }),
+    // Revoke all refresh tokens — security best practice on password change
+    prisma.refreshToken.updateMany({
+      where: { userId: storedToken.userId, revoked: false },
+      data: { revoked: true },
+    }),
+  ]);
+}
+
+// ─────────────────────────────────────────
+// Internal: Store Refresh Token
+// ─────────────────────────────────────────
+
 async function storeRefreshToken(
   userId: string,
   token: string
 ): Promise<void> {
-  // Parse expiry like "7d" into a Date
   const expiresAt = calculateRefreshExpiry();
 
   await prisma.refreshToken.create({
@@ -303,19 +494,12 @@ async function storeRefreshToken(
   });
 }
 
-/**
- * Calculate refresh token expiry date based on env config.
- *
- * Supports formats: "7d", "24h", "60m", "3600s"
- * Defaults to 7 days if parsing fails.
- */
 function calculateRefreshExpiry(): Date {
   const expiresIn = env.JWT_REFRESH_EXPIRES_IN;
   const now = Date.now();
   const match = expiresIn.match(/^(\d+)([smhd])$/);
 
   if (!match) {
-    // Fallback: 7 days
     return new Date(now + 7 * 24 * 60 * 60 * 1000);
   }
 

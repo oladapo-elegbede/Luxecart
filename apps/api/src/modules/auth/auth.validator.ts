@@ -2,33 +2,8 @@ import { z } from 'zod';
 
 /**
  * Authentication Validators.
- *
- * Zod schemas that define the shape of valid input for each auth endpoint.
- * The schemas:
- * - Validate input at runtime (rejects invalid requests with clear errors)
- * - Generate TypeScript types automatically (no duplication)
- * - Provide field-level error messages for the frontend
- *
- * USAGE:
- *   const result = registerSchema.safeParse(req.body);
- *   if (!result.success) { return validation error }
- *   const validData = result.data; // fully typed
  */
 
-/**
- * Registration validator.
- *
- * Password requirements:
- * - At least 8 characters
- * - At least one uppercase letter
- * - At least one lowercase letter
- * - At least one number
- *
- * These are common minimum requirements.
- * We don't require special characters because NIST guidelines now
- * recommend AGAINST forcing them (they encourage predictable patterns
- * like "Password1!" which are actually weaker).
- */
 export const registerSchema = z.object({
   email: z
     .string()
@@ -58,13 +33,6 @@ export const registerSchema = z.object({
     .trim(),
 });
 
-/**
- * Login validator.
- *
- * Notice we DON'T enforce password rules here.
- * Login just checks if the password matches what's stored.
- * The rules above only apply at registration time.
- */
 export const loginSchema = z.object({
   email: z
     .string()
@@ -75,23 +43,63 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
-/**
- * Refresh token validator.
- *
- * The refresh token comes from the httpOnly cookie, but we still
- * validate its presence to give a clear error if missing.
- */
 export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
 });
 
 /**
- * TypeScript types inferred from the Zod schemas.
+ * Forgot password — request a reset link by email.
  *
- * Single source of truth: the Zod schema.
- * If we change the schema, the type updates automatically.
- * This prevents drift between validation and types.
+ * We always return success (even if email doesn't exist) to prevent
+ * email enumeration. So only the email field is needed.
  */
+export const forgotPasswordSchema = z.object({
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .email('Please provide a valid email address')
+    .toLowerCase(),
+});
+
+/**
+ * Reset password — submit new password with the token from email.
+ *
+ * Same password rules as registration.
+ */
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+
+  newPassword: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password is too long')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+});
+
+/**
+ * Verify email — confirm email address with token from email.
+ */
+export const verifyEmailSchema = z.object({
+  token: z.string().min(1, 'Verification token is required'),
+});
+
+/**
+ * Resend verification — request a new verification email.
+ */
+export const resendVerificationSchema = z.object({
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .email('Please provide a valid email address')
+    .toLowerCase(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;

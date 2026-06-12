@@ -38,6 +38,7 @@ import { getErrorMessage } from '@/lib/api-client';
  * Features:
  *   - Email + password validation with Zod
  *   - Show/hide password toggle
+ *   - Forgot password link
  *   - Loading state during submission
  *   - Friendly error messages from backend
  *   - Redirects to `?redirect=` URL if present, otherwise dashboard
@@ -73,7 +74,6 @@ export default function LoginPage() {
       setAuth(data.user, data.accessToken);
       toast.success(`Welcome back, ${data.user.firstName}!`);
 
-      // Redirect to ?redirect= URL if present, else dashboard
       const redirectTo = searchParams.get('redirect') ?? '/dashboard';
       router.push(redirectTo);
     },
@@ -125,7 +125,16 @@ export default function LoginPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Password</FormLabel>
+                      <Link
+                        href="/forgot-password"
+                        className="text-xs text-primary hover:underline"
+                        tabIndex={-1}
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
                     <FormControl>
                       <div className="relative">
                         <Input
