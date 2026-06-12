@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { QueryProvider } from '@/providers/query-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
+import { AuthBootstrap } from '@/providers/auth-bootstrap';
 import { Toaster } from '@/components/ui/sonner';
 import { Navbar } from '@/components/common/navbar';
 import './globals.css';
@@ -54,6 +55,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <QueryProvider>
+            <AuthBootstrap />
             <Navbar />
             <main>{children}</main>
             <Toaster richColors position="top-right" />
