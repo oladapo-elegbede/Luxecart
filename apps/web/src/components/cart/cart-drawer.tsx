@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import * as React from 'react';
 import Link from 'next/link';
@@ -18,6 +18,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
   SheetFooter,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,12 @@ import type { CartItem } from '@/types';
  *   - Order summary (subtotal)
  *   - Checkout CTA
  *   - Empty state with shop CTA
+ *
+ * ACCESSIBILITY:
+ *   - SheetTitle announces "Shopping Cart" to screen readers
+ *   - SheetDescription (visually hidden via sr-only) provides context
+ *     about what users can do in the drawer. This satisfies WCAG and
+ *     removes the Radix UI "missing description" console warning.
  */
 
 export function CartDrawer() {
@@ -70,6 +77,10 @@ export function CartDrawer() {
               </span>
             )}
           </SheetTitle>
+          <SheetDescription className="sr-only">
+            Review the items in your shopping cart, adjust quantities, or
+            proceed to checkout.
+          </SheetDescription>
         </SheetHeader>
 
         {/* Not logged in */}

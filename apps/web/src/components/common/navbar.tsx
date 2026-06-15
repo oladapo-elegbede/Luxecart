@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import * as React from 'react';
 import Link from 'next/link';
@@ -26,6 +26,16 @@ import { useAuthStore } from '@/stores/auth-store';
  *   - Sticky with backdrop blur when scrolled
  *   - Clean glass effect on scroll
  *   - Responsive: nav links hidden on mobile, shown in menu drawer
+ *
+ * SSR / HYDRATION NOTE:
+ * We DO NOT read `isAuthenticated` directly during the first render,
+ * because the auth state lives in localStorage (only available on the
+ * client). Reading it on the server would return `false`, then `true`
+ * after the Zustand store hydrates — causing a React hydration mismatch.
+ *
+ * Instead, we gate auth-dependent UI on `isHydrated`. Before hydration,
+ * we render the SAME thing the server rendered (no wishlist button).
+ * After hydration, we re-render with the correct auth state.
  */
 const NAV_LINKS = [
   { href: '/products', label: 'Shop All' },
@@ -35,8 +45,13 @@ const NAV_LINKS = [
 ];
 
 export function Navbar() {
+  const isHydrated = useAuthStore((state) => state.isHydrated);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const [isScrolled, setIsScrolled] = React.useState(false);
+
+  // Only show auth-dependent UI AFTER store has hydrated from localStorage.
+  // Before hydration, render the "logged-out" version to match SSR output.
+  const showAuthUI = isHydrated && isAuthenticated;
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -84,8 +99,8 @@ export function Navbar() {
             </Link>
           </Button>
 
-          {/* Wishlist (only if logged in) */}
-          {isAuthenticated && (
+          {/* Wishlist (only if logged in, after hydration to avoid SSR mismatch) */}
+          {showAuthUI && (
             <Button
               variant="ghost"
               size="icon"
