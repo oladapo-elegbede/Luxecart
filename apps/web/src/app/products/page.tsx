@@ -1,10 +1,9 @@
 "use client";
-export const dynamic = 'force-dynamic';
 
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, SlidersHorizontal, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +19,12 @@ import { listProducts } from '@/lib/api/products';
 import { listCategories } from '@/lib/api/categories';
 import type { ListProductsParams } from '@/lib/api/products';
 
+/**
+ * Products Page (All Products + Category Filter).
+ *
+ * Wrapped in Suspense for Next.js 16 compatibility (useSearchParams).
+ */
+
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
   { value: 'price_asc', label: 'Price: Low to High' },
@@ -29,7 +34,25 @@ const SORT_OPTIONS = [
   { value: 'name_asc', label: 'Name: A to Z' },
 ] as const;
 
+// ─── PAGE EXPORT ─────────────────────────────────────────────
 export default function ProductsPage() {
+  return (
+    <React.Suspense fallback={<ProductsFallback />}>
+      <ProductsContent />
+    </React.Suspense>
+  );
+}
+
+function ProductsFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+
+// ─── ACTUAL CONTENT ──────────────────────────────────────────
+function ProductsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
