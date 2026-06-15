@@ -3,27 +3,11 @@ import { z } from 'zod';
 
 /**
  * Load environment variables from .env file.
- *
- * This MUST run before envSchema.safeParse() below.
- * Otherwise process.env won't have our .env values yet.
- *
- * In production (Railway, Vercel, AWS), .env is not used —
- * environment variables are set directly in the platform.
- * loadEnv() simply does nothing if no .env file exists, which is fine.
  */
 loadEnv();
 
 /**
  * Environment variable validation schema.
- *
- * WHY THIS MATTERS:
- * Without this, a missing env variable causes a cryptic error
- * deep in the application (e.g., "Cannot read property of undefined").
- *
- * With this, the server fails IMMEDIATELY on startup with a
- * clear message: "Missing required environment variable: DATABASE_URL"
- *
- * This is called "fail fast" — a critical production principle.
  */
 const envSchema = z.object({
   // Server
@@ -55,13 +39,23 @@ const envSchema = z.object({
 
   // Security
   BCRYPT_SALT_ROUNDS: z.string().default('12'),
+
+  // Stripe
+  STRIPE_SECRET_KEY: z
+    .string()
+    .min(1, 'STRIPE_SECRET_KEY is required')
+    .startsWith('sk_', 'STRIPE_SECRET_KEY must start with sk_'),
+  STRIPE_PUBLISHABLE_KEY: z
+    .string()
+    .min(1, 'STRIPE_PUBLISHABLE_KEY is required')
+    .startsWith('pk_', 'STRIPE_PUBLISHABLE_KEY must start with pk_'),
+  STRIPE_WEBHOOK_SECRET: z
+    .string()
+    .min(1, 'STRIPE_WEBHOOK_SECRET is required'),
 });
 
 /**
  * Parse and validate environment variables.
- *
- * safeParse returns { success, data, error } instead of throwing.
- * We handle the error explicitly for a better error message.
  */
 const parsed = envSchema.safeParse(process.env);
 
@@ -73,5 +67,4 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 
-// Type export for use across the codebase
 export type Env = z.infer<typeof envSchema>;

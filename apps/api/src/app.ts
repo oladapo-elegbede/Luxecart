@@ -19,21 +19,23 @@ import orderRoutes from './modules/orders/orders.routes';
 import reviewRoutes from './modules/reviews/reviews.routes';
 import notificationRoutes from './modules/notifications/notifications.routes';
 import adminRoutes from './modules/admin/admin.routes';
+import paymentRoutes from './modules/payments/payments.routes';
+import { stripeWebhook } from './modules/payments/payments.controller';
 import { errorHandler } from './middleware/errorHandler';
 
 const app: Express = express();
 
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 // Trust proxy (required for rate limiter in production)
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 
 // When deployed behind a reverse proxy (Vercel, Railway, etc.),
 // we need this so req.ip returns the real client IP, not the proxy's.
 app.set('trust proxy', 1);
 
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 // Security Middleware
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 
 app.use(
   helmet({
@@ -51,26 +53,47 @@ app.use(
   })
 );
 
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// ⚠️  STRIPE WEBHOOK — MUST COME BEFORE express.json()
+// ─────────────────────────────────────────────────────────────────
+//
+// Stripe sends webhook payloads as raw JSON, and we must verify the
+// signature against the EXACT raw bytes received. If express.json()
+// parsed the body first, the original bytes would be lost and
+// signature verification would always fail.
+//
+// We mount this route here, before any body-parsing middleware, and
+// use express.raw() to keep req.body as a Buffer for this single route.
+//
+// All OTHER routes still get express.json() applied below.
+// ─────────────────────────────────────────────────────────────────
+
+app.post(
+  '/api/v1/webhooks/stripe',
+  express.raw({ type: 'application/json' }),
+  stripeWebhook
+);
+
+// ─────────────────────────────────────────────────────────────────
 // Request Parsing Middleware
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 app.use(compression());
 
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 // Logging Middleware
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 
 if (env.NODE_ENV !== 'test') {
   app.use(morgan(env.NODE_ENV === 'development' ? 'dev' : 'combined'));
 }
 
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 // Health Check (no rate limit)
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 
 app.get('/health', async (_req, res) => {
   try {
@@ -94,15 +117,15 @@ app.get('/health', async (_req, res) => {
   }
 });
 
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 // Apply general rate limiter to all API routes
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 
 app.use('/api/v1', apiLimiter);
 
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 // API v1 Root
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 
 app.get('/api/v1', (_req, res) => {
   res.status(200).json({
@@ -120,13 +143,14 @@ app.get('/api/v1', (_req, res) => {
       'reviews',
       'notifications',
       'admin',
+      'payments',
     ],
   });
 });
 
-// ─────────────────────────────────────────
-// API v1 Routes (all 10 modules)
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// API v1 Routes (all 11 modules)
+// ─────────────────────────────────────────────────────────────────
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
@@ -139,10 +163,11 @@ app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/payments', paymentRoutes);
 
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 // 404 Handler (after all routes)
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 
 app.use((_req, res) => {
   res.status(404).json({
@@ -152,9 +177,9 @@ app.use((_req, res) => {
   });
 });
 
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 // Global Error Handler (MUST BE LAST)
-// ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 
 app.use(errorHandler);
 
