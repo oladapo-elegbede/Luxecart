@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = 'force-dynamic';
 
 import * as React from 'react';
 import Link from 'next/link';
@@ -29,14 +28,40 @@ import { getErrorMessage } from '@/lib/api-client';
  *
  * URL: /verify-email?token=xyz
  *
- * Auto-verifies when the page loads (token from URL).
+ * Wrapped in Suspense for Next.js 16 compatibility (useSearchParams).
+ *
  * Three states:
  *   1. VERIFYING — Loading spinner
  *   2. SUCCESS — Confirmation + Continue button
  *   3. ERROR — Helpful message + Resend option
  */
 
+// ─── PAGE EXPORT ─────────────────────────────────────────────
 export default function VerifyEmailPage() {
+  return (
+    <React.Suspense fallback={<VerifyEmailFallback />}>
+      <VerifyEmailContent />
+    </React.Suspense>
+  );
+}
+
+function VerifyEmailFallback() {
+  return (
+    <PageShell>
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="space-y-3 text-center">
+          <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 mx-auto">
+            <Loader2 className="h-8 w-8 text-primary animate-spin" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Loading…</CardTitle>
+        </CardHeader>
+      </Card>
+    </PageShell>
+  );
+}
+
+// ─── ACTUAL CONTENT ──────────────────────────────────────────
+function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -50,13 +75,10 @@ export default function VerifyEmailPage() {
     if (token && mutation.isIdle) {
       mutation.mutate({ token });
     }
-    // We intentionally only run this once when the token is available.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // ─────────────────────────────────────────
   // No token in URL
-  // ─────────────────────────────────────────
   if (!token) {
     return (
       <PageShell>
@@ -80,9 +102,7 @@ export default function VerifyEmailPage() {
     );
   }
 
-  // ─────────────────────────────────────────
   // Verifying (loading)
-  // ─────────────────────────────────────────
   if (mutation.isPending || mutation.isIdle) {
     return (
       <PageShell>
@@ -101,9 +121,7 @@ export default function VerifyEmailPage() {
     );
   }
 
-  // ─────────────────────────────────────────
   // Success
-  // ─────────────────────────────────────────
   if (mutation.isSuccess) {
     return (
       <PageShell>
@@ -133,9 +151,7 @@ export default function VerifyEmailPage() {
     );
   }
 
-  // ─────────────────────────────────────────
   // Error
-  // ─────────────────────────────────────────
   return (
     <PageShell>
       <Card className="w-full max-w-md shadow-lg">
