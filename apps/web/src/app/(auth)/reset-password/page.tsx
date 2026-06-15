@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
-
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -35,18 +33,7 @@ import { getErrorMessage } from '@/lib/api-client';
 
 /**
  * Reset Password Page.
- *
- * URL: /reset-password?token=xyz
- *
- * Three states:
- *   1. NO TOKEN — Show error, redirect to forgot-password
- *   2. FORM — User enters new password
- *   3. SUCCESS — Confirmation, redirect to login
- *
- * NEXT.JS 15 NOTE:
- * `export const dynamic = 'force-dynamic'` is required because this
- * page uses `useSearchParams()` to read the reset token from the URL.
- * Without it, Next.js fails to prerender this page during production builds.
+ * Wrapped in Suspense for Next.js 16 compatibility.
  */
 
 const resetPasswordSchema = z
@@ -66,7 +53,25 @@ const resetPasswordSchema = z
 
 type FormValues = z.infer<typeof resetPasswordSchema>;
 
+// ─── PAGE EXPORT ─────────────────────────────────────────────
 export default function ResetPasswordPage() {
+  return (
+    <React.Suspense fallback={<ResetPasswordFallback />}>
+      <ResetPasswordContent />
+    </React.Suspense>
+  );
+}
+
+function ResetPasswordFallback() {
+  return (
+    <div className="container mx-auto flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+
+// ─── ACTUAL CONTENT ──────────────────────────────────────────
+function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -83,7 +88,6 @@ export default function ResetPasswordPage() {
     mutationFn: resetPassword,
     onSuccess: () => {
       setIsSuccess(true);
-      // Auto-redirect after a brief moment so user can read the message
       setTimeout(() => router.push('/login'), 3000);
     },
     onError: (error) => {
@@ -91,9 +95,7 @@ export default function ResetPasswordPage() {
     },
   });
 
-  // ─────────────────────────────────────────
   // State 1: No token in URL
-  // ─────────────────────────────────────────
   if (!token) {
     return (
       <div className="container mx-auto flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
@@ -120,9 +122,7 @@ export default function ResetPasswordPage() {
     );
   }
 
-  // ─────────────────────────────────────────
   // State 2: Success
-  // ─────────────────────────────────────────
   if (isSuccess) {
     return (
       <div className="container mx-auto flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
@@ -151,9 +151,7 @@ export default function ResetPasswordPage() {
     );
   }
 
-  // ─────────────────────────────────────────
   // State 3: Form
-  // ─────────────────────────────────────────
   return (
     <div className="container mx-auto flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
       <Card className="w-full max-w-md shadow-lg">
