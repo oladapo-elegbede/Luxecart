@@ -1,8 +1,5 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
-
-
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -38,13 +35,8 @@ import { getErrorMessage } from '@/lib/api-client';
 /**
  * Login Page.
  *
- * Features:
- *   - Email + password validation with Zod
- *   - Show/hide password toggle
- *   - Forgot password link
- *   - Loading state during submission
- *   - Friendly error messages from backend
- *   - Redirects to `?redirect=` URL if present, otherwise dashboard
+ * Uses Suspense wrapper because `useSearchParams()` requires it for
+ * proper client/server boundary handling in Next.js 15+.
  */
 
 const loginSchema = z.object({
@@ -57,7 +49,25 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+// ─── PAGE EXPORT (with Suspense wrapper) ─────────────────────
 export default function LoginPage() {
+  return (
+    <React.Suspense fallback={<LoginFallback />}>
+      <LoginForm />
+    </React.Suspense>
+  );
+}
+
+function LoginFallback() {
+  return (
+    <div className="container mx-auto flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+
+// ─── ACTUAL FORM (uses useSearchParams inside Suspense) ───────
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
