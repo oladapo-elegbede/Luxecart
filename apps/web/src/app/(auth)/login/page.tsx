@@ -1,5 +1,14 @@
 "use client";
 
+/**
+ * NEXT.JS 15 DYNAMIC EXPORT:
+ * This page uses `useSearchParams()` which requires the page to be
+ * rendered dynamically (not pre-rendered at build time). Without this,
+ * production builds fail because Next.js tries to statically prerender
+ * a page that can only run on the client.
+ */
+export const dynamic = 'force-dynamic';
+
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';

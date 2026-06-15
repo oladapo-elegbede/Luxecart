@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -40,6 +42,11 @@ import { getErrorMessage } from '@/lib/api-client';
  *   1. NO TOKEN — Show error, redirect to forgot-password
  *   2. FORM — User enters new password
  *   3. SUCCESS — Confirmation, redirect to login
+ *
+ * NEXT.JS 15 NOTE:
+ * `export const dynamic = 'force-dynamic'` is required because this
+ * page uses `useSearchParams()` to read the reset token from the URL.
+ * Without it, Next.js fails to prerender this page during production builds.
  */
 
 const resetPasswordSchema = z
