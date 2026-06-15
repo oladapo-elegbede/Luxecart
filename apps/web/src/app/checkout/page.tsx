@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import * as React from 'react';
 import Link from 'next/link';
@@ -12,6 +12,7 @@ import {
   Loader2,
   Plus,
   Check,
+  ArrowLeft,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -21,34 +22,47 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Footer } from '@/components/common/footer';
+import { PaymentForm } from '@/components/checkout/payment-form';
 import { useAuthStore } from '@/stores/auth-store';
 import { getCart } from '@/lib/api/cart';
 import { listAddresses } from '@/lib/api/addresses';
 import { createOrder } from '@/lib/api/orders';
+import { createPaymentIntent } from '@/lib/api/payments';
 import { getErrorMessage } from '@/lib/api-client';
 
 /**
- * Checkout Page.
+ * Checkout Page (Two-Step Flow).
  *
- * Final step before placing an order.
+ * STEP 1 — Review:
+ *   Customer selects shipping address, adds notes, reviews order.
+ *   Clicks "Continue to Payment" → order is created (PENDING)
+ *   + Stripe PaymentIntent is created.
  *
- * Layout (2 columns on desktop, stacked on mobile):
- *   LEFT: Shipping address selector + notes
- *   RIGHT: Order summary with item list and totals
+ * STEP 2 — Pay:
+ *   Customer sees Stripe card form + final order summary.
+ *   Enters card details, clicks "Pay $X".
+ *   On success → redirect to /orders/[id]/success.
  *
- * Bottom: Place Order button
- *
- * Flow:
- *   1. Validate cart is not empty
- *   2. User selects shipping address (or adds new one)
- *   3. User reviews items and totals
- *   4. Clicks Place Order
- *   5. Order created via backend → cart cleared → redirect to success page
+ * WHY TWO STEPS?
+ *   - Standard pattern across major e-commerce sites (Shopify, Amazon)
+ *   - Customer can review before committing to payment
+ *   - If payment fails, order persists and can be retried
+ *   - Clear separation of concerns
  */
 
 const SHIPPING_THRESHOLD = 100;
 const FLAT_SHIPPING = 9.99;
 const TAX_RATE = 0.08;
+
+type CheckoutStep = 'review' | 'pay';
+
+interface PaymentSession {
+  orderId: string;
+  orderNumber: string;
+  clientSecret: string;
+  paymentIntentId: string;
+  amount: number;
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -56,28 +70,30 @@ export default function CheckoutPage() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const isHydrated = useAuthStore((state) => state.isHydrated);
 
+  // ─── State ──────────────────────────────────────────────
+  const [step, setStep] = React.useState<CheckoutStep>('review');
   const [selectedAddressId, setSelectedAddressId] = React.useState<string | null>(null);
   const [notes, setNotes] = React.useState('');
+  const [paymentSession, setPaymentSession] = React.useState<PaymentSession | null>(null);
 
-  // Redirect if not authenticated
+  // ─── Auth Redirect ──────────────────────────────────────
   React.useEffect(() => {
     if (isHydrated && !isAuthenticated) {
       router.push('/login?redirect=/checkout');
     }
   }, [isHydrated, isAuthenticated, router]);
 
-  // Fetch cart
+  // ─── Queries ────────────────────────────────────────────
   const { data: cart, isLoading: isLoadingCart } = useQuery({
     queryKey: ['cart'],
     queryFn: getCart,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && step === 'review',
   });
 
-  // Fetch addresses
   const { data: addresses, isLoading: isLoadingAddresses } = useQuery({
     queryKey: ['addresses'],
     queryFn: listAddresses,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && step === 'review',
   });
 
   // Auto-select default address when addresses load
@@ -88,20 +104,37 @@ export default function CheckoutPage() {
     }
   }, [addresses, selectedAddressId]);
 
-  const placeOrderMutation = useMutation({
-    mutationFn: createOrder,
-    onSuccess: (order) => {
-      toast.success(`Order ${order.orderNumber} placed successfully!`);
+  // ─── Mutation: Create Order + PaymentIntent (combined) ──
+  const proceedToPaymentMutation = useMutation({
+    mutationFn: async (input: { shippingAddressId: string; notes?: string }) => {
+      // 1. Create the order (PENDING status)
+      const order = await createOrder(input);
+
+      // 2. Create the Stripe PaymentIntent for that order
+      const intent = await createPaymentIntent({ orderId: order.id });
+
+      return { order, intent };
+    },
+    onSuccess: ({ order, intent }) => {
+      // Cart is cleared on backend when order is created
       queryClient.invalidateQueries({ queryKey: ['cart'] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      router.push(`/orders/${order.id}/success`);
+
+      setPaymentSession({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        clientSecret: intent.clientSecret,
+        paymentIntentId: intent.paymentIntentId,
+        amount: parseFloat(order.total),
+      });
+      setStep('pay');
     },
     onError: (error) => {
       toast.error(getErrorMessage(error));
     },
   });
 
-  const handlePlaceOrder = () => {
+  const handleProceedToPayment = () => {
     if (!selectedAddressId) {
       toast.error('Please select a shipping address');
       return;
@@ -110,18 +143,30 @@ export default function CheckoutPage() {
       toast.error('Your cart is empty');
       return;
     }
-    placeOrderMutation.mutate({
+    proceedToPaymentMutation.mutate({
       shippingAddressId: selectedAddressId,
       notes: notes.trim() || undefined,
     });
   };
 
-  // Calculate totals (for display only — backend recalculates)
+  const handleBackToReview = () => {
+    if (
+      window.confirm(
+        'Cancel this payment and return to checkout? Your pending order will remain in your order history.'
+      )
+    ) {
+      setPaymentSession(null);
+      setStep('review');
+    }
+  };
+
+  // ─── Calculations (review step) ─────────────────────────
   const subtotal = cart ? parseFloat(cart.subtotal) : 0;
   const shippingCost = subtotal >= SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING;
   const tax = +(subtotal * TAX_RATE).toFixed(2);
   const total = +(subtotal + shippingCost + tax).toFixed(2);
 
+  // ─── Loading / Auth Guards ──────────────────────────────
   if (!isHydrated || !isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -130,8 +175,8 @@ export default function CheckoutPage() {
     );
   }
 
-  // Empty cart guard
-  if (cart && cart.items.length === 0) {
+  // Empty cart guard (only matters on review step)
+  if (step === 'review' && cart && cart.items.length === 0) {
     return (
       <>
         <div className="container mx-auto px-4 py-24 text-center max-w-md">
@@ -149,6 +194,69 @@ export default function CheckoutPage() {
     );
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // STEP 2: PAYMENT
+  // ═══════════════════════════════════════════════════════════
+  if (step === 'pay' && paymentSession) {
+    return (
+      <>
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12 max-w-4xl">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBackToReview}
+            className="mb-6 -ml-3"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Back
+          </Button>
+
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold tracking-tight">Payment</h1>
+            <p className="text-muted-foreground mt-1">
+              Order{' '}
+              <span className="font-mono text-foreground">
+                {paymentSession.orderNumber}
+              </span>
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+            {/* Payment Form (Stripe) */}
+            <div>
+              <PaymentForm
+                clientSecret={paymentSession.clientSecret}
+                orderId={paymentSession.orderId}
+                paymentIntentId={paymentSession.paymentIntentId}
+                amount={paymentSession.amount}
+              />
+            </div>
+
+            {/* Order Summary (simplified) */}
+            <Card className="p-6 space-y-3 h-fit lg:sticky lg:top-24">
+              <h2 className="font-semibold">Order total</h2>
+              <Separator />
+              <div className="flex justify-between items-baseline">
+                <span className="text-muted-foreground">Total charged</span>
+                <span className="text-2xl font-bold">
+                  ${paymentSession.amount.toFixed(2)}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground pt-2">
+                Includes shipping and tax. Your card will be charged immediately.
+              </p>
+            </Card>
+          </div>
+        </div>
+
+        <Footer />
+      </>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STEP 1: REVIEW
+  // ═══════════════════════════════════════════════════════════
   return (
     <>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12 max-w-6xl">
@@ -349,28 +457,28 @@ export default function CheckoutPage() {
               </div>
 
               <Button
-                onClick={handlePlaceOrder}
+                onClick={handleProceedToPayment}
                 disabled={
                   !selectedAddressId ||
                   !cart ||
                   cart.items.length === 0 ||
-                  placeOrderMutation.isPending
+                  proceedToPaymentMutation.isPending
                 }
                 size="lg"
                 className="w-full"
               >
-                {placeOrderMutation.isPending ? (
+                {proceedToPaymentMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Placing order…
+                    Preparing payment…
                   </>
                 ) : (
-                  'Place Order'
+                  'Continue to Payment'
                 )}
               </Button>
 
               <p className="text-xs text-muted-foreground text-center">
-                By placing your order, you agree to our terms of service.
+                You will review your order and pay on the next step.
               </p>
             </Card>
           </div>
