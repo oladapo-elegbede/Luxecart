@@ -9,11 +9,20 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
  *
  * Wraps the app with QueryClient for server state management.
  *
- * KEY CONFIG:
- *   staleTime: 60s          — Data is considered fresh for 1 minute
- *   gcTime: 5 minutes       — Unused data garbage-collected after 5 min
- *   refetchOnWindowFocus    — Don't refetch when user tabs back (less aggressive)
- *   retry: 1                — Retry failed queries once (don't hammer the API)
+ * KEY CONFIG (Optimized for production):
+ *   staleTime: 5 min          — Data is considered fresh for 5 minutes
+ *                               (drastically reduces backend API calls)
+ *   gcTime: 30 minutes        — Unused data garbage-collected after 30 min
+ *                               (faster page transitions, less re-fetching)
+ *   refetchOnWindowFocus      — false (don't refetch on tab switch)
+ *   refetchOnMount            — false (use cached data when available)
+ *   refetchOnReconnect        — false (don't refetch on network reconnect)
+ *   retry: 1                  — Retry failed queries once
+ *
+ * PERFORMANCE IMPACT:
+ * For an e-commerce site where products/categories don't change every minute,
+ * these settings drastically reduce backend load and improve perceived speed.
+ * Users see cached data instantly, with background refresh as needed.
  *
  * WHY useState INSTEAD OF MODULE-LEVEL?
  * In Next.js App Router, a new QueryClient per request prevents data leakage
@@ -25,9 +34,11 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000, // 1 minute
-            gcTime: 5 * 60 * 1000, // 5 minutes
+            staleTime: 5 * 60 * 1000, // 5 minutes (was 1 min)
+            gcTime: 30 * 60 * 1000, // 30 minutes (was 5 min)
             refetchOnWindowFocus: false,
+            refetchOnMount: false, // NEW: use cached data on mount
+            refetchOnReconnect: false, // NEW: don't refetch on reconnect
             retry: 1,
           },
           mutations: {
