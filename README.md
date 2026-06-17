@@ -4,28 +4,93 @@
 
 ### Premium Shopping, Reimagined.
 
-A production-grade, full-stack e-commerce platform built with modern technologies and enterprise architecture patterns.
+A production-grade, full-stack e-commerce platform with real Stripe payment processing, built with modern technologies and enterprise architecture patterns.
+
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-Visit_Site-success?style=for-the-badge)](https://luxecart-web.vercel.app)
+[![GitHub](https://img.shields.io/badge/GitHub-Source_Code-181717?style=for-the-badge&logo=github)](https://github.com/oladapo-elegbede/Luxecart)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![Express](https://img.shields.io/badge/Express-4-000000?style=flat-square&logo=express&logoColor=white)](https://expressjs.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql&logoColor=white)](https://postgresql.org/)
+[![Stripe](https://img.shields.io/badge/Stripe-Payments-635BFF?style=flat-square&logo=stripe&logoColor=white)](https://stripe.com/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
 </div>
 
 ---
 
+## 🌐 Live Demo
+
+### 👉 **[https://luxecart-web.vercel.app](https://luxecart-web.vercel.app)** 👈
+
+**Try the complete checkout flow with Stripe test card:**
+
+| Field | Value |
+|-------|-------|
+| 💳 **Card Number** | `4242 4242 4242 4242` |
+| 📅 **Expiry** | Any future date (e.g., `12/30`) |
+| 🔐 **CVC** | Any 3 digits (e.g., `123`) |
+| 📮 **ZIP** | Any 5 digits (e.g., `12345`) |
+
+> 💡 **No real money is charged** — this uses Stripe test mode
+
+---
+
 ## 📋 Overview
 
-LuxeCart is a comprehensive e-commerce platform demonstrating modern full-stack engineering practices. Built as a monorepo with a clear separation of concerns, it showcases:
+LuxeCart is a comprehensive, production-deployed e-commerce platform demonstrating modern full-stack engineering. Built end-to-end with real payment processing, it features a complete customer journey from product browsing to order fulfillment.
 
-- **Clean Architecture** — Modular backend with service-repository-controller pattern
-- **Type Safety** — Strict TypeScript across the entire stack
-- **Production-Ready** — Security middleware, error handling, graceful shutdown
-- **Scalable Foundation** — Monorepo with shared types and reusable patterns
+**Key Highlights:**
+- ✅ **Real Stripe Payments** — Full checkout with webhook verification
+- ✅ **Production Deployed** — Live on Vercel + Render + Supabase
+- ✅ **JWT Authentication** — Access + refresh token rotation
+- ✅ **Clean Architecture** — Modular monorepo with strict TypeScript
+- ✅ **100% Lighthouse Scores** — Accessibility, Best Practices, SEO
+- ✅ **Dark Mode** — Beautiful responsive design
 
-This project is built incrementally to demonstrate real engineering progression, with every architectural decision documented and justified.
+---
+
+## ✨ Features
+
+### 🛒 Shopping Experience
+- Browse 11+ products across 6 categories
+- Advanced filtering and sorting
+- Beautiful product detail pages
+- Real-time stock validation
+- Shopping cart with quantity controls
+- Wishlist management
+
+### 👤 User Accounts
+- Email-based registration with verification
+- JWT authentication (access + refresh tokens)
+- Forgot password / reset flow
+- Profile management
+- Address book (multiple shipping addresses)
+- Order history with status tracking
+
+### 💳 Payments (Stripe)
+- Secure card collection with Stripe Elements
+- 3D Secure support
+- Payment Intent + webhook architecture
+- Idempotent payment processing
+- Order confirmation with email-style receipt
+
+### 🎨 UX/UI
+- Mobile-first responsive design
+- Dark mode with system preference detection
+- Toast notifications
+- Loading skeletons
+- Empty states with CTAs
+- Smooth page transitions
+
+### 🛡️ Security
+- Helmet.js security headers
+- CORS configuration
+- Rate limiting (per IP)
+- bcrypt password hashing
+- Webhook signature verification
+- Input validation with Zod
 
 ---
 
@@ -35,21 +100,28 @@ This project is built incrementally to demonstrate real engineering progression,
 - **Next.js 16** — React framework with App Router
 - **TypeScript 5** — Type-safe development
 - **Tailwind CSS 4** — Utility-first styling
-- **Turbopack** — Next-generation bundler
+- **shadcn/ui** — Accessible component library
+- **TanStack Query** — Server state management
+- **Zustand** — Client state management
+- **React Hook Form + Zod** — Form validation
+- **Stripe Elements** — Secure payment UI
 
 ### Backend
 - **Node.js + Express.js** — REST API server
 - **TypeScript 5** — Type-safe development
+- **Prisma ORM** — Type-safe database client
 - **Zod** — Runtime schema validation
+- **JWT** — Authentication tokens
+- **bcrypt** — Password hashing
+- **Stripe Node SDK** — Payment processing
 - **Helmet** — Security headers
-- **CORS** — Cross-origin resource sharing
-- **Morgan** — HTTP request logging
-- **dotenv** — Environment configuration
 
 ### Database & Infrastructure
-- **PostgreSQL 16** — Primary database (hosted on Supabase)
-- **Prisma ORM** — Type-safe database client (coming soon)
-- **Redis** — Caching and session storage (coming soon)
+- **PostgreSQL 16** — Primary database
+- **Supabase** — Managed database hosting
+- **Render** — Backend hosting
+- **Vercel** — Frontend hosting + CDN
+- **UptimeRobot** — Uptime monitoring
 
 ### DevOps & Tooling
 - **Turborepo** — Monorepo orchestration
@@ -59,42 +131,91 @@ This project is built incrementally to demonstrate real engineering progression,
 
 ---
 
-## 📁 Project Structure
+## 📊 Performance
 
-```
-luxecart/
-├── apps/
-│   ├── api/                    # Express.js REST API
-│   │   ├── src/
-│   │   │   ├── config/         # Environment & configurations
-│   │   │   ├── shared/
-│   │   │   │   ├── errors/     # Error class hierarchy
-│   │   │   │   └── helpers/    # Reusable utilities
-│   │   │   ├── app.ts          # Express app configuration
-│   │   │   └── server.ts       # Server entry point
-│   │   └── package.json
-│   └── web/                    # Next.js frontend
-│       ├── src/
-│       │   └── app/            # App Router pages
-│       └── package.json
-├── packages/                   # Shared packages (coming soon)
-│   └── types/                  # Shared TypeScript types
-├── .github/
-│   └── workflows/              # CI/CD pipelines
-├── turbo.json                  # Turborepo configuration
-└── package.json                # Workspace root
-```
+Production Lighthouse Scores:
+
+| Metric | Score |
+|--------|-------|
+| ⚡ Performance | 72 |
+| ♿ Accessibility | **100** |
+| 🛡️ Best Practices | **100** |
+| 🔍 SEO | **100** |
 
 ---
 
-## 🚀 Getting Started
+## 📁 Project Structure
+
+luxecart/
+├── apps/
+│ ├── api/ # Express.js REST API
+│ │ ├── src/
+│ │ │ ├── config/ # Env & DB configuration
+│ │ │ ├── middleware/ # Auth, rate limiter, error handler
+│ │ │ ├── modules/ # Feature modules
+│ │ │ │ ├── auth/ # Login, register, JWT
+│ │ │ │ ├── users/ # User management
+│ │ │ │ ├── addresses/ # Shipping addresses
+│ │ │ │ ├── categories/ # Product categories
+│ │ │ │ ├── products/ # Product catalog
+│ │ │ │ ├── cart/ # Shopping cart
+│ │ │ │ ├── wishlist/ # User wishlists
+│ │ │ │ ├── orders/ # Order management
+│ │ │ │ ├── reviews/ # Product reviews
+│ │ │ │ ├── notifications/ # User notifications
+│ │ │ │ ├── payments/ # Stripe integration
+│ │ │ │ └── admin/ # Admin operations
+│ │ │ ├── shared/
+│ │ │ │ ├── errors/ # HTTP error classes
+│ │ │ │ └── helpers/ # Reusable utilities
+│ │ │ ├── app.ts # Express app setup
+│ │ │ └── server.ts # Server entry point
+│ │ └── prisma/
+│ │ ├── schema.prisma # Database schema
+│ │ └── migrations/ # Schema migrations
+│ │
+│ └── web/ # Next.js frontend
+│ ├── src/
+│ │ ├── app/ # App Router pages
+│ │ │ ├── (auth)/ # Auth pages group
+│ │ │ ├── products/ # Product catalog
+│ │ │ ├── categories/ # Category pages
+│ │ │ ├── cart/ # Cart page
+│ │ │ ├── checkout/ # Checkout flow
+│ │ │ ├── orders/ # Order history
+│ │ │ ├── dashboard/ # User dashboard
+│ │ │ └── profile/ # Profile management
+│ │ ├── components/ # React components
+│ │ │ ├── ui/ # shadcn/ui primitives
+│ │ │ ├── cart/ # Cart-specific
+│ │ │ ├── checkout/ # Checkout flow
+│ │ │ ├── products/ # Product components
+│ │ │ └── common/ # Shared (navbar, footer)
+│ │ ├── lib/
+│ │ │ ├── api/ # API client functions
+│ │ │ ├── api-client.ts # Axios instance
+│ │ │ └── stripe.ts # Stripe.js client
+│ │ ├── providers/ # React providers
+│ │ ├── stores/ # Zustand stores
+│ │ └── types/ # TypeScript types
+│ └── public/ # Static assets
+│
+├── .github/workflows/ # CI/CD pipelines
+├── turbo.json # Turborepo config
+├── vercel.json # Vercel deployment config
+└── package.json # Workspace root
+
+
+---
+
+## 🚀 Getting Started Locally
 
 ### Prerequisites
 
 - **Node.js** 18.0.0 or higher
 - **npm** 9.0.0 or higher
-- **Git**
-- **PostgreSQL** database (Supabase free tier recommended)
+- **PostgreSQL** database (Supabase free tier works great)
+- **Stripe Account** (free, test mode only)
 
 ### Installation
 
@@ -102,163 +223,144 @@ luxecart/
    ```bash
    git clone https://github.com/oladapo-elegbede/Luxecart.git
    cd Luxecart
-   ```
 
-2. **Install all dependencies**
-   ```bash
-   npm install
-   ```
+   Install dependencies
 
-3. **Set up environment variables**
+Bash
 
-   For the API:
-   ```bash
-   cd apps/api
-   cp .env.example .env
-   # Edit .env with your DATABASE_URL
-   ```
+npm install
+Set up environment variables
 
-   For the Web app:
-   ```bash
-   cd apps/web
-   cp .env.example .env.local
-   ```
+Create apps/api/.env:
 
-4. **Run the development servers**
+env
 
-   In separate terminals:
-   ```bash
-   # Backend (port 5000)
-   cd apps/api && npm run dev
+DATABASE_URL=postgresql://user:pass@host:5432/dbname
+DIRECT_URL=postgresql://user:pass@host:5432/dbname
+JWT_ACCESS_SECRET=your-min-32-char-secret
+JWT_REFRESH_SECRET=your-min-32-char-secret
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+CLIENT_URL=http://localhost:3000
+Create apps/web/.env.local:
 
-   # Frontend (port 3000)
-   cd apps/web && npm run dev
-   ```
+env
 
-5. **Verify the setup**
+NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+Run database migrations
 
-   - Frontend: http://localhost:3000
-   - Backend Health Check: http://localhost:5000/health
-   - Backend API v1: http://localhost:5000/api/v1
+Bash
 
----
+cd apps/api
+npx prisma migrate deploy
+npx prisma db seed
+Start development servers
 
-## 🎯 Features Roadmap
+In separate terminals:
 
-### ✅ Phase 1-4: Foundation (Complete)
-- [x] Product planning and requirements specification
-- [x] System architecture design
-- [x] UI/UX design system
-- [x] Monorepo setup with Turborepo
-- [x] Express.js API with security middleware
-- [x] Next.js 16 frontend with TypeScript
-- [x] Environment variable validation with Zod
-- [x] Centralized error handling system
-- [x] Graceful shutdown handling
-- [x] Cloud PostgreSQL setup (Supabase)
+Bash
 
-### 🔄 Phase 5: Database Design (Next)
-- [ ] Prisma ORM integration
-- [ ] Complete database schema (Users, Products, Orders, etc.)
-- [ ] Database migrations
-- [ ] Seed data for development
+# Backend (port 5000)
+cd apps/api && npm run dev
 
-### 📅 Phase 6+: Core Features (Upcoming)
-- [ ] JWT authentication with refresh tokens
-- [ ] Product catalog APIs
-- [ ] Shopping cart functionality
-- [ ] Stripe payment integration
-- [ ] Order management system
-- [ ] Reviews and ratings
-- [ ] Admin dashboard
-- [ ] Comprehensive testing
-- [ ] CI/CD deployment
+# Frontend (port 3000)
+cd apps/web && npm run dev
 
----
+# Stripe webhook listener
+stripe listen --forward-to localhost:5000/api/v1/webhooks/stripe
+Visit the app
 
-## 🏗️ Architecture Principles
+Frontend: http://localhost:3000
+Backend Health: http://localhost:5000/health
+API Root: http://localhost:5000/api/v1
+🎯 Development Roadmap
+✅ Completed Phases (1-13)
+✅ Phase 1-2: Product planning & system architecture
+✅ Phase 3: UI/UX design system
+✅ Phase 4: Monorepo setup with Turborepo
+✅ Phase 5: Database design (Prisma + PostgreSQL)
+✅ Phase 6: Backend API (10 modules, 40+ endpoints)
+✅ Phase 7: Frontend pages (14+ routes)
+✅ Phase 8: Authentication & security
+✅ Phase 9: Stripe payment integration
+✅ Phase 10: Testing & polish
+✅ Phase 11: Production deployment
+✅ Phase 12: Performance optimization
+✅ Phase 13: Portfolio preparation
+🔮 Future Enhancements
+ Admin dashboard UI
+ Real email sending (Resend/SendGrid)
+ Product reviews UI
+ Wishlist sharing
+ Multi-currency support
+ Internationalization (i18n)
+ Automated tests (Jest + Playwright)
+ Real-time order tracking
+ Push notifications
+🏗️ Architecture Highlights
+Clean Architecture
+text
 
-This project follows **Clean Architecture** with strict separation of concerns:
-
-```
 HTTP Request
      │
      ▼
-[ Routes ]              ← URL routing
+[ Routes ]              ← URL → handler mapping
      │
      ▼
-[ Controllers ]         ← Request/response handling
+[ Middleware ]          ← Auth, validation, rate limiting
      │
      ▼
-[ Services ]            ← Business logic (pure, testable)
+[ Controllers ]         ← HTTP request/response handling
      │
      ▼
-[ Repositories ]        ← Database access
+[ Validators (Zod) ]    ← Runtime input validation
      │
      ▼
-[ Database ]
-```
+[ Services ]            ← Business logic (pure functions)
+     │
+     ▼
+[ Database (Prisma) ]   ← Type-safe ORM
+     │
+     ▼
+PostgreSQL
+Key Patterns
+Separation of concerns — Each layer has a single responsibility
+Dependency injection — Services are stateless and testable
+Type safety — TypeScript everywhere, runtime validation with Zod
+Idempotency — Critical operations (payments) are safe to retry
+Transaction safety — Order creation uses database transactions
+Error handling — Custom error hierarchy with proper HTTP codes
+💡 What I Learned Building This
+This project taught me production patterns I now use daily:
 
-**Key principles:**
-- Dependencies only point inward
-- Business logic has zero knowledge of HTTP
-- Every layer is independently testable
-- All errors flow through a centralized handler
+🏗️ Monorepo management with Turborepo and npm workspaces
+🔐 JWT authentication with refresh token rotation
+💳 Stripe integration including webhook signature verification
+🗄️ Database design with proper relations and indexes
+🚀 Production deployment across multiple services (Vercel + Render + Supabase)
+🐛 Real debugging — CORS, environment variables, build issues
+📊 Performance optimization — caching strategies, lazy loading
+♿ Accessibility — ARIA, semantic HTML, keyboard navigation
+📸 Screenshots
+Screenshots coming soon! For now, visit the live demo to see it in action.
 
----
+🤝 Contributing
+This is a portfolio project, but I welcome feedback and suggestions! Feel free to:
 
-## 🔒 Security Practices
+⭐ Star this repo if you find it useful
+🐛 Report bugs
+💡 Suggest features
+📜 License
+MIT License — see LICENSE file for details
 
-- ✅ Helmet.js for security headers (15+ headers configured)
-- ✅ CORS with explicit origin whitelisting
-- ✅ Request body size limits (DoS prevention)
-- ✅ Environment variable validation on startup
-- ✅ Compressed responses (gzip)
-- ✅ HTTP request logging
-- 🔄 JWT with refresh tokens (Phase 6)
-- 🔄 Rate limiting with Redis (Phase 6)
-- 🔄 Input validation on all endpoints (Phase 6)
+👨‍💻 Author
+Oladapo Elegbede
 
----
-
-## 📝 Available Scripts
-
-From the root of the monorepo:
-
-```bash
-npm run dev          # Start all apps in development mode
-npm run build        # Build all apps for production
-npm run lint         # Lint all packages
-npm run type-check   # Run TypeScript type checking
-npm run format       # Format all code with Prettier
-```
-
----
-
-## 🤝 Contributing
-
-This is a personal portfolio project, but contributions, suggestions, and feedback are welcome. Please feel free to open an issue or pull request.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👨‍💻 Author
-
-**Oladapo Elegbede**
-
-- GitHub: [@oladapo-elegbede](https://github.com/oladapo-elegbede)
-
----
-
+🌐 GitHub: @oladapo-elegbede
+💼 Live Project: luxecart-web.vercel.app
 <div align="center">
+Built with ❤️ following senior engineering practices
+⭐ If this project helped you learn something, please star the repo!
 
-### Built with ❤️ following senior engineering practices
-
-⭐ Star this repo if you find it helpful!
-
-</div>
+</div> ```
